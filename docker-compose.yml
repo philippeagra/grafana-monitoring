@@ -1,0 +1,64 @@
+version: '2'
+services:
+
+  influxdb:
+    container_name: influxdb
+    image: influxdb:latest
+    ports:
+      - "8086:8086"
+      - "8083:8086"
+      - "8090:8090"
+      - "8099:8099"
+    environment:
+      INFLUXDB_DATA_ENGINE: tsm1
+
+  telegraf:
+    container_name: telegraf
+    image: telegraf:latest
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    ports:
+      - "8125:8125"
+    depends_on:
+      - influxdb
+      - grafana
+      - usedcars
+    links:
+      - influxdb
+      - usedcars
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    volumes:
+      - ./config/:/etc/grafana/scripts
+    ports:
+      - "3000:3000"
+    depends_on:
+      - influxdb
+    links:
+      - influxdb
+
+  usedcars:
+    container_name: usedcars
+    image: wired-service-usedcars:1.7.0-SNAPSHOT
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local,alb
+      - JAVA_OPTS=-Dspring.datasource.url=jdbc:postgresql://postgres:5432/wired
+    depends_on:
+      - postgres
+    links:
+      - postgres  
+
+  postgres:
+    container_name: postgres
+    image: postgres:9.6-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=wired
+      - POSTGRES_USER=usedcars
+      - POSTGRES_PASSWORD=usedcars
+
